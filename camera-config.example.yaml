@@ -1,6 +1,6 @@
 #Photo Booth Config:
-"CAMERA_BUTTON_PIN" : 21 # GPIO pin that is connected to 'take photo' button
-"EXIT_BUTTON_PIN"   : 13 # GPIO pin that is connected to 'exit' button (optional)
+"CAMERA_BUTTON_PIN" : 4 # GPIO pin that is connected to 'take photo' button
+"EXIT_BUTTON_PIN"   : 17 # GPIO pin that is connected to 'exit' button (optional)
 "TOTAL_PICS"        : 4  # Number of pics to be taken
 "PREP_DELAY"        : 4  # Number of seconds as users prepare to have photo taken, before countdown commences
 "COUNTDOWN"         : 3  # Number of seconds to count down from
@@ -22,7 +22,7 @@
 "SCREEN_H"          : 480
 
 # Camera setup
-"CAMERA_ROTATION"   : 270 # Rotation of the camera
+"CAMERA_ROTATION"   : 180 # Rotation of the camera
 "CAMERA_HFLIP"      : True # When preparing for photos, the preview will be flipped horizontally.
 
 # Primary folder to save images to (required):

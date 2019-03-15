@@ -15,6 +15,7 @@ __version__ = '2.2'
 #Standard imports
 from time import sleep
 from shutil import copy2
+from itertools import cycle
 import sys
 import datetime
 import os
@@ -108,10 +109,12 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(CAMERA_BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 GPIO.setup(EXIT_BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-CAMERA = picamera.PiCamera()
+CAMERA = picamera.PiCamera(resolution = (PHOTO_W, PHOTO_H))
 CAMERA.rotation = CAMERA_ROTATION
-CAMERA.annotate_text_size = 80
-CAMERA.resolution = (PHOTO_W, PHOTO_H)
+CAMERA.annotate_text_size = 120
+CAMERA.annotate_foreground = picamera.Color(y=1, u=0, v=0)
+CAMERA.annotate_background = picamera.Color(y=0, u=0, v=0)
+CAMERA.image_effect = 'sketch'
 CAMERA.hflip = CAMERA_HFLIP
 
 ########################
@@ -168,10 +171,9 @@ def remove_overlay(overlay_id):
         CAMERA.remove_overlay(overlay_id)
 
 # overlay one image on screen
-def overlay_image(image_path, duration=0, layer=3, mode='RGB'):
+def overlay_image(image_path, layer=3, mode='RGB'):
     """
-    Add an overlay (and sleep for an optional duration).
-    If sleep duration is not supplied, then overlay will need to be removed later.
+    Add an overlay.
     This function returns an overlay id, which can be used to remove_overlay(id).
     """
 
@@ -211,13 +213,7 @@ def overlay_image(image_path, duration=0, layer=3, mode='RGB'):
 
     # Add the overlay with the padded image as the source,
     # but the original image's dimensions
-    o_id = CAMERA.add_overlay(padded_img_data, size=img.size)
-    o_id.layer = layer
-
-    if duration > 0:
-        sleep(duration)
-        CAMERA.remove_overlay(o_id)
-        o_id = -1 # '-1' indicates there is no overlay
+    o_id = CAMERA.add_overlay(padded_img_data, size=img.size, layer=layer)
 
     return o_id # if we have an overlay (o_id > 0), we will need to remove it later
 
@@ -231,7 +227,7 @@ def prep_for_photo_screen(photo_number):
 
     #Get ready for the next photo
     get_ready_image = REAL_PATH + '/assets/get_ready_' + str(photo_number) + '.png'
-    overlay_image(get_ready_image, PREP_DELAY, 3, 'RGBA')
+    return overlay_image(get_ready_image, 5, 'RGBA')
 
 def taking_photo(photo_number, filename_prefix):
     """
@@ -243,7 +239,7 @@ def taking_photo(photo_number, filename_prefix):
 
     #countdown from 3, and display countdown on screen
     for counter in range(COUNTDOWN, 0, -1):
-        print_overlay("             ..." + str(counter))
+        print_overlay(" ..." + str(counter))
         sleep(1)
 
     #Take still
@@ -252,33 +248,39 @@ def taking_photo(photo_number, filename_prefix):
     print('Photo (' + str(photo_number) + ') saved: ' + filename)
     return filename
 
-def playback_screen(filename_prefix):
+def playback_screen(filename_prefix, photo_filenames):
     """
     Final screen before main loop restarts
     """
-
+    command = "montage {filename_prefix}* -geometry {w}x{h} {filename_prefix}.jpg".format(filename_prefix=filename_prefix, w=PHOTO_W/2, h=PHOTO_H/2)
+    os.system(command)
     #Processing
     print('Processing...')
     processing_image = REAL_PATH + '/assets/processing.png'
-    overlay_image(processing_image, 2)
+    prev_overlay = overlay_image(processing_image, 4)
+    sleep(2)
 
+    montage = "{filename_prefix}.jpg".format(filename_prefix=filename_prefix)
+    photo_filenames.append(montage)
     #Playback
-    prev_overlay = False
-    for photo_number in range(1, TOTAL_PICS + 1):
-        filename = filename_prefix + '_' + str(photo_number) + 'of'+ str(TOTAL_PICS)+'.jpg'
-        this_overlay = overlay_image(filename, False, (3 + TOTAL_PICS))
+    for filename in photo_filenames:
+        this_overlay = overlay_image(filename, 6)
         # The idea here, is only remove the previous overlay after a new overlay is added.
         if prev_overlay:
             remove_overlay(prev_overlay)
-        sleep(2)
+        if filename == montage:
+            sleep(6)
+        else:
+            sleep(2)
         prev_overlay = this_overlay
 
-    remove_overlay(prev_overlay)
 
     #All done
     print('All done!')
     finished_image = REAL_PATH + '/assets/all_done_delayed_upload.png'
-    overlay_image(finished_image, 5)
+    ol_done = overlay_image(finished_image, 5)
+    remove_overlay(prev_overlay)
+    return ol_done
 
 def main():
     """
@@ -296,20 +298,20 @@ def main():
     #Setup any required folders (if missing)
     health_test_required_folders()
 
-    #Start camera preview
-    CAMERA.start_preview(resolution=(SCREEN_W, SCREEN_H))
-
     #Display intro screen
     intro_image_1 = REAL_PATH + '/assets/intro_1.png'
     intro_image_2 = REAL_PATH + '/assets/intro_2.png'
-    overlay_1 = overlay_image(intro_image_1, 0, 3)
-    overlay_2 = overlay_image(intro_image_2, 0, 4)
+    overlay_1 = overlay_image(intro_image_1, 3)
+    overlay_2 = overlay_image(intro_image_2, 4)
+
+    #Start camera preview
+    CAMERA.start_preview(resolution=(SCREEN_W, SCREEN_H))
 
     #Wait for someone to push the button
     i = 0
     blink_speed = 10
 
-   #Use falling edge detection to see if button is being pushed in
+    #Use falling edge detection to see if button is being pushed in
     GPIO.add_event_detect(CAMERA_BUTTON_PIN, GPIO.FALLING)
     GPIO.add_event_detect(EXIT_BUTTON_PIN, GPIO.FALLING)
 
@@ -351,23 +353,60 @@ def main():
         #Button has been pressed!
         print('Button pressed! You folks are in for a treat.')
 
+        remove_overlay(overlay_2)
+        remove_overlay(overlay_1)
+
+        lst = [
+            'none',
+            'negative',
+            'solarize',
+            'sketch',
+            'emboss',
+            'gpen',
+            'washedout',
+            'posterise',
+            'cartoon',
+        ]
+        pool = cycle(lst)
+        for item in pool:
+            CAMERA.image_effect = item
+            #CAMERA.image_effect_params = item
+            #CAMERA.annotate_text = str(item)
+            while True:
+                photo_button_is_pressed = None
+                exit_button_is_pressed = None
+                if GPIO.event_detected(CAMERA_BUTTON_PIN):
+                    sleep(DEBOUNCE_TIME)
+                    if GPIO.input(CAMERA_BUTTON_PIN) == 0:
+                        photo_button_is_pressed = True
+                if GPIO.event_detected(EXIT_BUTTON_PIN):
+                    sleep(DEBOUNCE_TIME)
+                    if GPIO.input(EXIT_BUTTON_PIN) == 0:
+                        exit_button_is_pressed = True
+                if exit_button_is_pressed or photo_button_is_pressed:
+                    break
+                sleep(0.1)
+            if exit_button_is_pressed:
+                break
+
         #Silence GPIO detection
         GPIO.remove_event_detect(CAMERA_BUTTON_PIN)
         GPIO.remove_event_detect(EXIT_BUTTON_PIN)
 
         #Get filenames for images
         filename_prefix = get_base_filename_for_images()
-        remove_overlay(overlay_2)
-        remove_overlay(overlay_1)
+
 
         photo_filenames = []
         for photo_number in range(1, TOTAL_PICS + 1):
-            prep_for_photo_screen(photo_number)
+            ol_id = prep_for_photo_screen(photo_number)
+            sleep(PREP_DELAY)
+            remove_overlay(ol_id)
             fname = taking_photo(photo_number, filename_prefix)
             photo_filenames.append(fname)
 
         #thanks for playing
-        playback_screen(filename_prefix)
+        ol_done = playback_screen(filename_prefix, photo_filenames)
 
         #Save photos into additional folders (for post-processing/backup... etc.)
         for dest in COPY_IMAGES_TO:
@@ -380,8 +419,9 @@ def main():
             break
 
         # Otherwise, display intro screen again
-        overlay_1 = overlay_image(intro_image_1, 0, 3)
-        overlay_2 = overlay_image(intro_image_2, 0, 4)
+        overlay_1 = overlay_image(intro_image_1, 3)
+        overlay_2 = overlay_image(intro_image_2, 4)
+        remove_overlay(ol_done)
         GPIO.add_event_detect(CAMERA_BUTTON_PIN, GPIO.FALLING)
         GPIO.add_event_detect(EXIT_BUTTON_PIN, GPIO.FALLING)
         print('Press the button to take a photo')
@@ -389,6 +429,9 @@ def main():
 if __name__ == "__main__":
     try:
         main()
+
+    except Exception as e:
+        print(e)
 
     except KeyboardInterrupt:
         print('Goodbye')
