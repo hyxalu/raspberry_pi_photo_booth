@@ -13,7 +13,7 @@ __version__ = '2.2'
 
 
 #Standard imports
-from time import sleep
+from time import sleep, perf_counter
 from shutil import copy2
 from itertools import cycle
 import sys
@@ -143,7 +143,7 @@ def print_overlay(string_to_print):
     Writes a string to both [i] the console, and [ii] CAMERA.annotate_text
     """
     print(string_to_print)
-    #CAMERA.annotate_text = string_to_print
+    CAMERA.annotate_text = string_to_print
 
 def get_base_filename_for_images():
     """
@@ -243,7 +243,7 @@ def taking_photo(photo_number, filename_prefix):
     for counter in range(COUNTDOWN, 0, -1):
         countdown_image = REAL_PATH + '/assets/countdown_' + str(counter) + '.png'
         countdown_overlay = overlay_image(countdown_image, 5, 'RGBA')
-        print_overlay(" ..." + str(counter))
+        print(" ..." + str(counter))
         sleep(1)
         remove_overlay(countdown_overlay)
 
@@ -366,6 +366,7 @@ def main():
         if PROPOSE_GPU_EFFECTS:
             lst = [
                 'none',
+                'film',
                 'negative',
                 'solarize',
                 'sketch',
@@ -375,27 +376,22 @@ def main():
                 'posterise',
                 'cartoon',
             ]
-            pool = cycle(lst)
+            pool = cycle(picamera.PiCamera.IMAGE_EFFECTS)
             for item in pool:
+                tic = perf_counter()
                 CAMERA.image_effect = item
+                print_overlay(item)
                 #CAMERA.image_effect_params = item
                 #CAMERA.annotate_text = str(item)
-                while True:
+                while (perf_counter() - tic < 2.0) :
                     photo_button_is_pressed = None
-                    exit_button_is_pressed = None
                     if GPIO.event_detected(CAMERA_BUTTON_PIN):
                         sleep(DEBOUNCE_TIME)
                         if GPIO.input(CAMERA_BUTTON_PIN) == 0:
                             photo_button_is_pressed = True
-                    if GPIO.event_detected(EXIT_BUTTON_PIN):
-                        sleep(DEBOUNCE_TIME)
-                        if GPIO.input(EXIT_BUTTON_PIN) == 0:
-                            exit_button_is_pressed = True
-                    if exit_button_is_pressed or photo_button_is_pressed:
+                    if photo_button_is_pressed:
                         break
                     sleep(0.1)
-                if exit_button_is_pressed:
-                    break
 
         #Silence GPIO detection
         GPIO.remove_event_detect(CAMERA_BUTTON_PIN)
