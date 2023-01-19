@@ -143,7 +143,7 @@ def print_overlay(string_to_print):
     Writes a string to both [i] the console, and [ii] CAMERA.annotate_text
     """
     print(string_to_print)
-    CAMERA.annotate_text = string_to_print
+    #CAMERA.annotate_text = string_to_print
 
 def get_base_filename_for_images():
     """
@@ -241,8 +241,13 @@ def taking_photo(photo_number, filename_prefix):
 
     #countdown from 3, and display countdown on screen
     for counter in range(COUNTDOWN, 0, -1):
+        countdown_image = REAL_PATH + '/assets/countdown_' + str(counter) + '.png'
+        countdown_overlay = overlay_image(countdown_image, 5, 'RGBA')
         print_overlay(" ..." + str(counter))
         sleep(1)
+        remove_overlay(countdown_overlay)
+
+    sleep(0.5)
 
     #Take still
     CAMERA.annotate_text = ''
