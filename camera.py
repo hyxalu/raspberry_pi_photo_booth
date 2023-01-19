@@ -26,7 +26,7 @@ REAL_PATH = os.path.dirname(os.path.realpath(__file__))
 #Additional Imports
 try:
     from PIL import Image
-    from ruamel import yaml
+    from ruamel.yaml import YAML
     import picamera
     import RPi.GPIO as GPIO
 
@@ -59,8 +59,9 @@ if not os.path.exists(PATH_TO_CONFIG):
 with open(PATH_TO_CONFIG, 'r') as stream:
     CONFIG = {}
     try:
-        CONFIG = yaml.safe_load(stream)
-    except yaml.YAMLError as exc:
+        yaml = YAML(typ='safe')
+        CONFIG = yaml.load(stream)
+    except Exception as exc:
         print(exc)
 
 #Required config
@@ -80,6 +81,7 @@ try:
     DEBOUNCE_TIME = CONFIG['DEBOUNCE_TIME']
     TESTMODE_AUTOPRESS_BUTTON = CONFIG['TESTMODE_AUTOPRESS_BUTTON']
     SAVE_RAW_IMAGES_FOLDER = CONFIG['SAVE_RAW_IMAGES_FOLDER']
+    PROPOSE_GPU_EFFECTS = False
 
 except KeyError as exc:
     print('')
@@ -159,7 +161,7 @@ def get_base_filename_for_images():
     base_filename = base_filename.replace(' ', '_')
     base_filename = base_filename.replace(':', '-')
 
-    base_filepath = REAL_PATH + '/' + SAVE_RAW_IMAGES_FOLDER + '/' + base_filename
+    base_filepath = SAVE_RAW_IMAGES_FOLDER + '/' + base_filename
 
     return base_filepath
 
@@ -252,13 +254,12 @@ def playback_screen(filename_prefix, photo_filenames):
     """
     Final screen before main loop restarts
     """
-    command = "montage {filename_prefix}* -geometry {w}x{h} {filename_prefix}.jpg".format(filename_prefix=filename_prefix, w=PHOTO_W/2, h=PHOTO_H/2)
-    os.system(command)
     #Processing
     print('Processing...')
     processing_image = REAL_PATH + '/assets/processing.png'
     prev_overlay = overlay_image(processing_image, 4)
-    sleep(2)
+    command = "montage {filename_prefix}* -geometry {w}x{h} {filename_prefix}.jpg".format(filename_prefix=filename_prefix, w=PHOTO_W/2, h=PHOTO_H/2)
+    os.system(command)
 
     montage = "{filename_prefix}.jpg".format(filename_prefix=filename_prefix)
     photo_filenames.append(montage)
@@ -356,38 +357,40 @@ def main():
         remove_overlay(overlay_2)
         remove_overlay(overlay_1)
 
-        lst = [
-            'none',
-            'negative',
-            'solarize',
-            'sketch',
-            'emboss',
-            'gpen',
-            'washedout',
-            'posterise',
-            'cartoon',
-        ]
-        pool = cycle(lst)
-        for item in pool:
-            CAMERA.image_effect = item
-            #CAMERA.image_effect_params = item
-            #CAMERA.annotate_text = str(item)
-            while True:
-                photo_button_is_pressed = None
-                exit_button_is_pressed = None
-                if GPIO.event_detected(CAMERA_BUTTON_PIN):
-                    sleep(DEBOUNCE_TIME)
-                    if GPIO.input(CAMERA_BUTTON_PIN) == 0:
-                        photo_button_is_pressed = True
-                if GPIO.event_detected(EXIT_BUTTON_PIN):
-                    sleep(DEBOUNCE_TIME)
-                    if GPIO.input(EXIT_BUTTON_PIN) == 0:
-                        exit_button_is_pressed = True
-                if exit_button_is_pressed or photo_button_is_pressed:
+        CAMERA.image_effect = 'none'
+        if PROPOSE_GPU_EFFECTS:
+            lst = [
+                'none',
+                'negative',
+                'solarize',
+                'sketch',
+                'emboss',
+                'gpen',
+                'washedout',
+                'posterise',
+                'cartoon',
+            ]
+            pool = cycle(lst)
+            for item in pool:
+                CAMERA.image_effect = item
+                #CAMERA.image_effect_params = item
+                #CAMERA.annotate_text = str(item)
+                while True:
+                    photo_button_is_pressed = None
+                    exit_button_is_pressed = None
+                    if GPIO.event_detected(CAMERA_BUTTON_PIN):
+                        sleep(DEBOUNCE_TIME)
+                        if GPIO.input(CAMERA_BUTTON_PIN) == 0:
+                            photo_button_is_pressed = True
+                    if GPIO.event_detected(EXIT_BUTTON_PIN):
+                        sleep(DEBOUNCE_TIME)
+                        if GPIO.input(EXIT_BUTTON_PIN) == 0:
+                            exit_button_is_pressed = True
+                    if exit_button_is_pressed or photo_button_is_pressed:
+                        break
+                    sleep(0.1)
+                if exit_button_is_pressed:
                     break
-                sleep(0.1)
-            if exit_button_is_pressed:
-                break
 
         #Silence GPIO detection
         GPIO.remove_event_detect(CAMERA_BUTTON_PIN)
@@ -407,6 +410,7 @@ def main():
 
         #thanks for playing
         ol_done = playback_screen(filename_prefix, photo_filenames)
+        sleep(2)
 
         #Save photos into additional folders (for post-processing/backup... etc.)
         for dest in COPY_IMAGES_TO:
