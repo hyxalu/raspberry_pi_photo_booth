@@ -118,6 +118,7 @@ CAMERA.annotate_foreground = picamera.Color(y=1, u=0, v=0)
 CAMERA.annotate_background = picamera.Color(y=0, u=0, v=0)
 CAMERA.image_effect = 'sketch'
 CAMERA.hflip = CAMERA_HFLIP
+CAMERA.awb_mode = 'tungsten'
 
 ########################
 ### Helper Functions ###
