@@ -81,7 +81,7 @@ try:
     DEBOUNCE_TIME = CONFIG['DEBOUNCE_TIME']
     TESTMODE_AUTOPRESS_BUTTON = CONFIG['TESTMODE_AUTOPRESS_BUTTON']
     SAVE_RAW_IMAGES_FOLDER = CONFIG['SAVE_RAW_IMAGES_FOLDER']
-    PROPOSE_GPU_EFFECTS = False
+    PROPOSE_GPU_EFFECTS = True
 
 except KeyError as exc:
     print('')
@@ -365,34 +365,17 @@ def main():
 
         CAMERA.image_effect = 'none'
         if PROPOSE_GPU_EFFECTS:
-            lst = [
-                'none',
-                'film',
-                'negative',
-                'solarize',
-                'sketch',
-                'emboss',
-                'gpen',
-                'washedout',
-                'posterise',
-                'cartoon',
-            ]
-            pool = cycle(picamera.PiCamera.IMAGE_EFFECTS)
-            for item in pool:
-                tic = perf_counter()
-                CAMERA.image_effect = item
-                print_overlay(item)
-                #CAMERA.image_effect_params = item
-                #CAMERA.annotate_text = str(item)
-                while (perf_counter() - tic < 2.0) :
-                    photo_button_is_pressed = None
-                    if GPIO.event_detected(CAMERA_BUTTON_PIN):
-                        sleep(DEBOUNCE_TIME)
-                        if GPIO.input(CAMERA_BUTTON_PIN) == 0:
-                            photo_button_is_pressed = True
-                    if photo_button_is_pressed:
-                        break
-                    sleep(0.1)
+            tic = perf_counter()
+            while (perf_counter() - tic < 2.0) :
+                photo_button_is_pressed = None
+                if GPIO.event_detected(CAMERA_BUTTON_PIN):
+                    sleep(DEBOUNCE_TIME)
+                    if GPIO.input(CAMERA_BUTTON_PIN) == 0:
+                        photo_button_is_pressed = True
+                if photo_button_is_pressed:
+                    CAMERA.image_effect = 'sketch'
+                    break
+                sleep(0.1)
 
         #Silence GPIO detection
         GPIO.remove_event_detect(CAMERA_BUTTON_PIN)
