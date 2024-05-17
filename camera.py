@@ -19,7 +19,6 @@ from itertools import cycle
 import sys
 import datetime
 import os
-from pynput import mouse
 
 #Need to do this early, in case import below fails:
 REAL_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -124,33 +123,6 @@ CAMERA.awb_mode = CONFIG['AWB_MODE']
 ########################
 ### Helper Functions ###
 ########################
-CLICKED = False
-
-def on_move(x, y):
-    print('Pointer moved to {0}'.format(
-        (x, y)))
-
-def on_click(x, y, button, pressed):
-    if pressed:
-        CLICKED = True
-    print('{0} at {1}'.format(
-        'Pressed' if pressed else 'Released',
-        (x, y)))
-    if not pressed:
-        # Stop listener
-        return False
-
-def on_scroll(x, y, dx, dy):
-    print('Scrolled {0} at {1}'.format(
-        'down' if dy < 0 else 'up',
-        (x, y)))
-    
-listener = mouse.Listener(
-    on_move=on_move,
-    on_click=on_click,
-    on_scroll=on_scroll)
-listener.start()
-
 def health_test_required_folders():
     folders_list=[SAVE_RAW_IMAGES_FOLDER]
     folders_list.extend(COPY_IMAGES_TO)
@@ -371,7 +343,7 @@ def main():
             photo_button_is_pressed = True
 
         #Stay inside loop, until button is pressed
-        if photo_button_is_pressed is None and not CLICKED:
+        if photo_button_is_pressed is None:
 
             #After every 10 cycles, alternate the overlay
             i = i+1
@@ -439,7 +411,6 @@ def main():
         overlay_1 = overlay_image(intro_image_1, 3)
         overlay_2 = overlay_image(intro_image_2, 4)
         remove_overlay(ol_done)
-        CLICKED = False
         GPIO.add_event_detect(CAMERA_BUTTON_PIN, GPIO.FALLING)
         GPIO.add_event_detect(EXIT_BUTTON_PIN, GPIO.FALLING)
         print('Press the button to take a photo')
