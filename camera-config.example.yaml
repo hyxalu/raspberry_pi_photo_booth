@@ -33,3 +33,6 @@
 
 # Test purposes only:
 "TESTMODE_AUTOPRESS_BUTTON" : False # Should the button be automatically pressed? (only used for testing)
+
+"PROPOSE_GPU_EFFECTS" : False
+"AWB_MODE" : "auto"

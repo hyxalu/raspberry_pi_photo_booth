@@ -81,7 +81,7 @@ try:
     DEBOUNCE_TIME = CONFIG['DEBOUNCE_TIME']
     TESTMODE_AUTOPRESS_BUTTON = CONFIG['TESTMODE_AUTOPRESS_BUTTON']
     SAVE_RAW_IMAGES_FOLDER = CONFIG['SAVE_RAW_IMAGES_FOLDER']
-    PROPOSE_GPU_EFFECTS = True
+    PROPOSE_GPU_EFFECTS = CONFIG['PROPOSE_GPU_EFFECTS']
 
 except KeyError as exc:
     print('')
@@ -118,7 +118,7 @@ CAMERA.annotate_foreground = picamera.Color(y=1, u=0, v=0)
 CAMERA.annotate_background = picamera.Color(y=0, u=0, v=0)
 CAMERA.image_effect = 'sketch'
 CAMERA.hflip = CAMERA_HFLIP
-CAMERA.awb_mode = 'tungsten'
+CAMERA.awb_mode = CONFIG['AWB_MODE']
 
 ########################
 ### Helper Functions ###
